@@ -14,7 +14,7 @@ float CUBE_WIDTH = 1.5;
 float HORIZONTAL_SCALE = 30;
 float VERTICAL_SCALE = 15;
 const bool APPLY_LIGHTING = true;
-const char* GRADIENT = ".'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
+const char* GRADIENT = ".,-~:;=!*#$@";
 
 // Environment settings 
 int SCREEN_WIDTH = 80;
@@ -25,7 +25,7 @@ const float DISTANCE_FROM_CAM = 8;
 const float LIGHT_X = 0;
 const float LIGHT_Y = 1;
 const float LIGHT_Z = -1;
-const unsigned int LIGHT_INTENSITY = 70;
+const unsigned int LIGHT_INTENSITY = 12;
 
 // Animation settings
 const float INCREMENT_ANGLE = 0.04;
