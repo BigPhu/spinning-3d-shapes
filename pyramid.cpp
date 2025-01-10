@@ -10,10 +10,10 @@ using namespace std;
 const float PI = 3.14;
 // ========================  SETTINGS ========================
 // Pyramid settings
-const float PYRAMID_HEIGHT = 1.5;
-const float BASE_WIDTH = 1.5;
-const float HORIZONTAL_SCALE = 30;
-const float VERTICAL_SCALE = 15;
+const float PYRAMID_HEIGHT = 2.5;
+const float BASE_WIDTH = 4;
+const float HORIZONTAL_SCALE = 50;
+const float VERTICAL_SCALE = 20;
 const bool APPLY_LIGHTING = true;
 const char* GRADIENT = ".,-~:;=!*#$@";
 
@@ -24,7 +24,7 @@ char BACKGROUND = ' ';
 const char* COLOR = "Color  0A";    // https://www.geeksforgeeks.org/how-to-print-COLORed-text-in-c/
 const float DISTANCE_FROM_CAM = 8;
 const float LIGHT_X = 0;
-const float LIGHT_Y = 1;
+const float LIGHT_Y = 0;
 const float LIGHT_Z = -1;
 const unsigned int LIGHT_INTENSITY = 12;
 
@@ -79,20 +79,20 @@ float* normalize(float vec[3]) {
 
 void renderFace(float baseX, float baseY, float cubeZ, float normalVec[3]) {
     float x = calcX(baseX, baseY, cubeZ);
-    float y = calcY(baseX, baseY, cubeZ);
+    float y = -calcY(baseX, baseY, cubeZ);
     float z = calcZ(baseX, baseY, cubeZ);
     
     float ooz = 1/(z + DISTANCE_FROM_CAM);
 
     // Project donut to 2D screen
-    int xp = (int) ((SCREEN_WIDTH/2) + (HORIZONTAL_SCALE*x*ooz*2));
-    int yp = (int) ((SCREEN_HEIGHT/2) + (VERTICAL_SCALE*y*ooz*2));
+    int xp = (int) ((SCREEN_WIDTH/2) + (HORIZONTAL_SCALE*x*ooz));
+    int yp = (int) ((SCREEN_HEIGHT/2) + (VERTICAL_SCALE*y*ooz));
     int idx = xp + yp*SCREEN_WIDTH;
                 
     if (idx >= 0 && idx < screenArea) {
         // Calculate lighting
         float normalX = calcX(normalVec[0], normalVec[1], normalVec[2]);
-        float normalY = calcY(normalVec[0], normalVec[1], normalVec[2]);
+        float normalY = -calcY(normalVec[0], normalVec[1], normalVec[2]);
         float normalZ = calcZ(normalVec[0], normalVec[1], normalVec[2]);
         float L = normalX*NORMAL_LIGHT_X + normalY*NORMAL_LIGHT_Y + normalZ*NORMAL_LIGHT_Z;
         
@@ -109,14 +109,14 @@ void renderFace(float baseX, float baseY, float cubeZ, float normalVec[3]) {
 
 void renderFace(float baseX, float baseY, float cubeZ, char faceTexture) {
     float x = calcX(baseX, baseY, cubeZ);
-    float y = calcY(baseX, baseY, cubeZ);
+    float y = -calcY(baseX, baseY, cubeZ);
     float z = calcZ(baseX, baseY, cubeZ);
     
     float ooz = 1/(z + DISTANCE_FROM_CAM);
 
     // Project donut to 2D screen
-    int xp = (int) ((SCREEN_WIDTH/2) + (HORIZONTAL_SCALE*x*ooz*2));
-    int yp = (int) ((SCREEN_HEIGHT/2) + (VERTICAL_SCALE*y*ooz*2));
+    int xp = (int) ((SCREEN_WIDTH/2) + (HORIZONTAL_SCALE*x*ooz));
+    int yp = (int) ((SCREEN_HEIGHT/2) + (VERTICAL_SCALE*y*ooz));
     int idx = xp + yp*SCREEN_WIDTH;
                 
     if (idx >= 0 && idx < screenArea) {
@@ -148,12 +148,12 @@ int main() {
     // Normal vectors. NOTE: NORMAL VECTORS OF ANY FACE SHOULD BE NORMALIZED TO MAKE THE LIGHTING ACCURE
     float denominator = BASE_WIDTH*BASE_WIDTH + 4*PYRAMID_HEIGHT*PYRAMID_HEIGHT;
     float normX = (2*PYRAMID_HEIGHT*PYRAMID_HEIGHT*BASE_WIDTH)/(denominator);
-    float normY = (BASE_WIDTH*BASE_WIDTH*PYRAMID_HEIGHT)/(denominator);
+    float normY = (BASE_WIDTH*BASE_WIDTH*PYRAMID_HEIGHT)/(denominator) - PYRAMID_HEIGHT/2;
 
-    float baseNormalVec[3] = {0, 1, 0};
+    float baseNormalVec[3] = {0, -1, 0};
     float frontNormalVec[3] = {0, normY, -normX};
     float backNormalVec[3] = {0, normY, normX};
-    float rightNormalVec[3] = {normX, -normY, 0};
+    float rightNormalVec[3] = {normX, normY, 0};
     float leftNormalVec[3] = {-normX, normY, 0};
 
     normalize(frontNormalVec);
@@ -174,36 +174,35 @@ int main() {
         sinC = sin(C), cosC = cos(C);
         
         // Render pyramid base
-        for (float baseX = -BASE_WIDTH; baseX < BASE_WIDTH; baseX += 0.07) {
-            for (float baseY = -BASE_WIDTH; baseY < BASE_WIDTH; baseY += 0.07) {
+        for (float baseX = -BASE_WIDTH/2; baseX < BASE_WIDTH/2; baseX += 0.07) {
+            for (float baseY = -BASE_WIDTH/2; baseY < BASE_WIDTH/2; baseY += 0.07) {
                 if (APPLY_LIGHTING) {
-                    renderFace(baseX, PYRAMID_HEIGHT, baseY, baseNormalVec);      
+                    renderFace(baseX, -PYRAMID_HEIGHT/2, baseY, baseNormalVec);      
                 }
                 else {
-                    renderFace(baseX, PYRAMID_HEIGHT, baseY, '+'); 
+                    renderFace(baseX, -PYRAMID_HEIGHT/2, baseY, '+'); 
                 }
             }
         }
         // Render pyramid side faces
-        for (float sideY = -PYRAMID_HEIGHT; sideY < PYRAMID_HEIGHT; sideY += 0.07) {
-            float sideWidth = -(BASE_WIDTH/(2*PYRAMID_HEIGHT))*(sideY - PYRAMID_HEIGHT);
-            float sideZ = -((BASE_WIDTH/(2*PYRAMID_HEIGHT))*sideY) + (BASE_WIDTH/2);
+        for (float sideY = -PYRAMID_HEIGHT/2; sideY < PYRAMID_HEIGHT/2; sideY += 0.07) {
+            float sideWidth = -(BASE_WIDTH/(2*PYRAMID_HEIGHT))*(sideY - PYRAMID_HEIGHT/2);
+            float sideZ = sideWidth;
 
             for (float sideX = -sideWidth; sideX < sideWidth; sideX += 0.07) {
                 if (APPLY_LIGHTING) {
-                    float normalVec[3] = {0, 1, 0};
-                    renderFace(sideX, -sideY, -sideZ, frontNormalVec);      // Front
-                    renderFace(sideX, -sideY, sideZ, backNormalVec);        // Back
+                    renderFace(sideX, sideY, -sideZ, frontNormalVec);      // Front
+                    renderFace(sideX, sideY, sideZ, backNormalVec);        // Back
 
-                    renderFace(sideZ, -sideY, sideX, rightNormalVec);       // Right side
-                    renderFace(-sideZ, -sideY, sideX, leftNormalVec);       // Left side
+                    renderFace(sideZ, sideY, sideX, rightNormalVec);       // Right side
+                    renderFace(-sideZ, sideY, sideX, leftNormalVec);       // Left side
                 }
                 else {
-                    renderFace(sideX, -sideY, -sideZ, '@');     // Front
-                    renderFace(sideX, -sideY, sideZ, '#');      // Back
+                    renderFace(sideX, sideY, -sideZ, '@');     // Front
+                    renderFace(sideX, sideY, sideZ, '#');      // Back
 
-                    renderFace(sideZ, -sideY, sideX, ';');      // Right side
-                    renderFace(-sideZ, -sideY, sideX, '~');     // Left side
+                    renderFace(sideZ, sideY, sideX, ';');      // Right side
+                    renderFace(-sideZ, sideY, sideX, '~');     // Left side
                 }
             }
         }
