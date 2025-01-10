@@ -15,6 +15,7 @@ const float BASE_WIDTH = 1.5;
 const float HORIZONTAL_SCALE = 30;
 const float VERTICAL_SCALE = 15;
 const bool APPLY_LIGHTING = true;
+const char* GRADIENT = ".'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
 
 // Environment settings 
 int SCREEN_WIDTH = 80;
@@ -23,15 +24,16 @@ char BACKGROUND = ' ';
 const char* COLOR = "Color  0A";    // https://www.geeksforgeeks.org/how-to-print-COLORed-text-in-c/
 const float DISTANCE_FROM_CAM = 8;
 const float LIGHT_X = 0;
-const float LIGHT_Y = 0;
+const float LIGHT_Y = 1;
 const float LIGHT_Z = -1;
-const unsigned int LIGHT_INTENSITY = 12;
+const unsigned int LIGHT_INTENSITY = 70;
 
 // Animation settings
 const float INCREMENT_ANGLE = 0.04;
-const int ANIMATION_DELAY = 10;      // In miliseconds
+const int ANIMATION_DELAY = 20;      // In miliseconds
 // ============================================================
 
+// Calculate necessary variables
 float A = 0.0;
 float B = 0.0;
 float C = 0.0;
@@ -39,6 +41,8 @@ float sinA, cosA;
 float sinB, cosB;
 float sinC, cosC;
 const int screenArea = SCREEN_WIDTH*SCREEN_HEIGHT;
+const int GRADIENT_SIZE = strlen(GRADIENT);
+// Normalize light source position vector
 const float LIGHT_VEC_LENGTH = sqrt(LIGHT_X*LIGHT_X + LIGHT_Y*LIGHT_Y + LIGHT_Z*LIGHT_Z);
 const float NORMAL_LIGHT_X = LIGHT_X/LIGHT_VEC_LENGTH;
 const float NORMAL_LIGHT_Y = -LIGHT_Y/LIGHT_VEC_LENGTH;
@@ -61,6 +65,48 @@ float calcZ(float i, float j, float k) {
     return (-sinB)*i + (cosB*sinA)*j + (cosB*cosA)*k;
 }
 
+float* normalize(float vec[3]) {
+    float vecLen = sqrt(vec[0]*vec[0] + vec[1]*vec[1] + vec[2]*vec[2]);
+
+    if (vecLen != 1) {
+        vec[0] /= vecLen;
+        vec[1] /= vecLen;
+        vec[2] /= vecLen;
+    }
+
+    return vec;
+}
+
+void renderFace(float baseX, float baseY, float cubeZ, float normalVec[3]) {
+    float x = calcX(baseX, baseY, cubeZ);
+    float y = calcY(baseX, baseY, cubeZ);
+    float z = calcZ(baseX, baseY, cubeZ);
+    
+    float ooz = 1/(z + DISTANCE_FROM_CAM);
+
+    // Project donut to 2D screen
+    int xp = (int) ((SCREEN_WIDTH/2) + (HORIZONTAL_SCALE*x*ooz*2));
+    int yp = (int) ((SCREEN_HEIGHT/2) + (VERTICAL_SCALE*y*ooz*2));
+    int idx = xp + yp*SCREEN_WIDTH;
+                
+    if (idx >= 0 && idx < screenArea) {
+        // Calculate lighting
+        float normalX = calcX(normalVec[0], normalVec[1], normalVec[2]);
+        float normalY = calcY(normalVec[0], normalVec[1], normalVec[2]);
+        float normalZ = calcZ(normalVec[0], normalVec[1], normalVec[2]);
+        float L = normalX*NORMAL_LIGHT_X + normalY*NORMAL_LIGHT_Y + normalZ*NORMAL_LIGHT_Z;
+        
+        if (L > 0) {
+            if (ooz > zBuffer[idx]) {
+                zBuffer[idx] = ooz;
+
+                int lightLevel = min((float) GRADIENT_SIZE - 1, L*LIGHT_INTENSITY);
+                output[idx] = GRADIENT[lightLevel];
+            }
+        }
+    }
+}
+
 void renderFace(float baseX, float baseY, float cubeZ, char faceTexture) {
     float x = calcX(baseX, baseY, cubeZ);
     float y = calcY(baseX, baseY, cubeZ);
@@ -73,23 +119,16 @@ void renderFace(float baseX, float baseY, float cubeZ, char faceTexture) {
     int yp = (int) ((SCREEN_HEIGHT/2) + (VERTICAL_SCALE*y*ooz*2));
     int idx = xp + yp*SCREEN_WIDTH;
                 
-    if (idx >= 0 && idx < screenArea && ooz > zBuffer[idx]) {
-        // Add texture
-        zBuffer[idx] = ooz;
+    if (idx >= 0 && idx < screenArea) {
 
-        if (APPLY_LIGHTING) {
-            float vecLength = sqrt(x*x + y*y + z*z);
-            float L = (x*NORMAL_LIGHT_X + y*NORMAL_LIGHT_Y + z*NORMAL_LIGHT_Z)/vecLength;
-            if (L > 0) {
-                int lightLevel = min(11.0f, L*LIGHT_INTENSITY);
-                output[idx] = ".,-~:;=!*#$@"[lightLevel];
-            }
-        }
-        else {
+        if (ooz > zBuffer[idx]) {
+            // Add texture
+            zBuffer[idx] = ooz;
             output[idx] = faceTexture;
         }
     }
 }
+
 void hideCursor() {
     HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_CURSOR_INFO cursorInfo;
@@ -102,21 +141,25 @@ void hideCursor() {
     SetConsoleCursorInfo(consoleHandle, &cursorInfo);
 }
 
-void showCursor() {
-    HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_CURSOR_INFO cursorInfo;
-    
-    // Get current cursor information
-    GetConsoleCursorInfo(consoleHandle, &cursorInfo);
-    
-    // Set the cursor visibility to true
-    cursorInfo.bVisible = true;
-    SetConsoleCursorInfo(consoleHandle, &cursorInfo);
-}
-
 int main() {
     hideCursor();
     system(COLOR);
+
+    // Normal vectors. NOTE: NORMAL VECTORS OF ANY FACE SHOULD BE NORMALIZED TO MAKE THE LIGHTING ACCURE
+    float denominator = BASE_WIDTH*BASE_WIDTH + 4*PYRAMID_HEIGHT*PYRAMID_HEIGHT;
+    float normX = (2*PYRAMID_HEIGHT*PYRAMID_HEIGHT*BASE_WIDTH)/(denominator);
+    float normY = (BASE_WIDTH*BASE_WIDTH*PYRAMID_HEIGHT)/(denominator);
+
+    float baseNormalVec[3] = {0, 1, 0};
+    float frontNormalVec[3] = {0, normY, -normX};
+    float backNormalVec[3] = {0, normY, normX};
+    float rightNormalVec[3] = {normX, -normY, 0};
+    float leftNormalVec[3] = {-normX, normY, 0};
+
+    normalize(frontNormalVec);
+    normalize(backNormalVec);
+    normalize(rightNormalVec);
+    normalize(leftNormalVec);
 
     // Main render loop
     while (true) {
@@ -133,7 +176,12 @@ int main() {
         // Render pyramid base
         for (float baseX = -BASE_WIDTH; baseX < BASE_WIDTH; baseX += 0.07) {
             for (float baseY = -BASE_WIDTH; baseY < BASE_WIDTH; baseY += 0.07) {
-                renderFace(baseX, PYRAMID_HEIGHT, baseY, '+');      
+                if (APPLY_LIGHTING) {
+                    renderFace(baseX, PYRAMID_HEIGHT, baseY, baseNormalVec);      
+                }
+                else {
+                    renderFace(baseX, PYRAMID_HEIGHT, baseY, '+'); 
+                }
             }
         }
         // Render pyramid side faces
@@ -142,15 +190,25 @@ int main() {
             float sideZ = -((BASE_WIDTH/(2*PYRAMID_HEIGHT))*sideY) + (BASE_WIDTH/2);
 
             for (float sideX = -sideWidth; sideX < sideWidth; sideX += 0.07) {
-                renderFace(sideX, -sideY, -sideZ, '@');     // Front
-                renderFace(sideX, -sideY, sideZ, '#');      // Back
+                if (APPLY_LIGHTING) {
+                    float normalVec[3] = {0, 1, 0};
+                    renderFace(sideX, -sideY, -sideZ, frontNormalVec);      // Front
+                    renderFace(sideX, -sideY, sideZ, backNormalVec);        // Back
 
-                renderFace(sideZ, -sideY, sideX, ';');      // Right side
-                renderFace(-sideZ, -sideY, sideX, '~');     // Left side
+                    renderFace(sideZ, -sideY, sideX, rightNormalVec);       // Right side
+                    renderFace(-sideZ, -sideY, sideX, leftNormalVec);       // Left side
+                }
+                else {
+                    renderFace(sideX, -sideY, -sideZ, '@');     // Front
+                    renderFace(sideX, -sideY, sideZ, '#');      // Back
+
+                    renderFace(sideZ, -sideY, sideX, ';');      // Right side
+                    renderFace(-sideZ, -sideY, sideX, '~');     // Left side
+                }
             }
         }
         
-        // Render cube
+        // Render pyramid
         cout << "\x1b[H";
         for (int i = 0; i < screenArea; i++) {
             cout << ((i % SCREEN_WIDTH) ? output[i] : '\n');
